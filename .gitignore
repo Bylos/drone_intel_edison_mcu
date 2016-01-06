@@ -1,4 +1,9 @@
-*.mk
-*.mk
-Release/makefile
-.settings/language.settings.xml
+# Ignore SDK specific files to keep only sources
+.settings/
+internal_tools/
+lib/
+Release/
+.cproject
+.project
+.properties
+MCU.xml
