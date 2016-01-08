@@ -114,9 +114,9 @@ void mcu_main()
 		cur_time = time_ms();
 
 		/* Debug: log number of frame from peripherals */
-		if (cur_time - debug_timer >= 8000) {
+		if (cur_time - debug_timer >= 10000) {
 			debug_print(DBG_INFO, "time: %d, cpu: %d, xbee: %d, lsm: %d, adv: %d\n",
-					cur_time/1000, cpu_cnt, xbee_cnt >> 3, lsm_cnt >> 3, adv_cnt >> 3);
+					cur_time/1000, cpu_cnt, xbee_cnt, lsm_cnt, adv_cnt);
 			cpu_cnt = xbee_cnt = lsm_cnt = adv_cnt = 0;
 			debug_timer = cur_time;
 		}
@@ -126,6 +126,9 @@ void mcu_main()
 
 		/* Check for new controller frame */
 		switch (MCU_Get_Controller_Data(cur_time)) {
+		case -1:
+			mcu_next_mode = MCU_MODE_UNARMED;
+			break;
 		case 1:
 			xbee_cnt ++;
 			break;
