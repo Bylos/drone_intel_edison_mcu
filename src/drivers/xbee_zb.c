@@ -49,7 +49,6 @@ unsigned short xbee_read_frame(void) {
 		while (preamble == 0xFF) {
 			uart_read(1, &preamble, 1);
 		}
-		rc_channel = 0;
 		for (i=0; i<preamble; i+=2) {
 			uart_read(1, buffer+i, 1);
 			uart_read(1, buffer+i+1, 1);
@@ -62,21 +61,19 @@ unsigned short xbee_read_frame(void) {
 			debug_print(DBG_ERROR, "XBEE ZB: RX CRC\n");
 			rc_channel = 0;
 		}
-		return 0;
 	} else {
 		debug_print(DBG_ERROR, "XBEE ZB: RX Preamble\n");
 	}
-
 	/* Second part : store data and raise flags */
-	if (rc_channel & CH_RIGHT_Y) { // assume that if throttle is present, yaw pitch and roll are also
-		joystick.right.y = rc_data[1 << CH_RIGHT_Y];	// throttle
-		joystick.right.x = rc_data[1 << CH_RIGHT_X];	// yaw
-		joystick.left.y  = rc_data[1 << CH_LEFT_Y];		// pitch
-		joystick.left.x  = rc_data[1 << CH_LEFT_X];		// roll
+	if (rc_channel & (1 << CH_RIGHT_Y)) { // assume that if throttle is present, yaw pitch and roll are also
+		joystick.right.y = rc_data[CH_RIGHT_Y];	// throttle
+		joystick.right.x = rc_data[CH_RIGHT_X];	// yaw
+		joystick.left.y  = rc_data[CH_LEFT_Y];		// pitch
+		joystick.left.x  = rc_data[CH_LEFT_X];		// roll
 		joystick_flag = 1;
 	}
-	if (rc_channel & CH_COMMAND) {
-		rc_command = rc_data[1 << CH_COMMAND];
+	if (rc_channel & (1 << CH_COMMAND)) {
+		rc_command = rc_data[CH_COMMAND];
 		rc_command_flag = 1;
 	}
 	return rc_channel; // return a non-zero value to reinit timeout
