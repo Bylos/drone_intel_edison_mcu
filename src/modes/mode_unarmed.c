@@ -40,6 +40,7 @@ mcu_mode_t Mode_Unarmed_Run(cpu_mode_t cpu_mode) {
 		/* Do nothing but clear data */
 		cpu_get_esc_pwm_data();
 	}
+
 	/* Check for mode request */
 	if (xbee_get_command_flag()) {
 		switch (xbee_get_command()) {
