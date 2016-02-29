@@ -30,7 +30,7 @@ unsigned char MCU_Advert(const unsigned long timer) {
 /*******************************************************************************
  * Get Data from Sensors
  *******************************************************************************/
-#define INERTIAL_PERIOD		10	// ms
+#define INERTIAL_PERIOD		50	// ms
 #define INERTIAL_DURATION	900	// us
 unsigned long mcu_inertial_timer;
 unsigned char MCU_Get_Inertial_Data(const unsigned long timer) {
@@ -86,7 +86,9 @@ char MCU_Get_Processor_Data(const unsigned long timer) {
 
 #define CPU_SEND_DURATION	900 // us
 #define PWM_DURATION		500 // us
-#define LOOP_DURATION		43  // us
+#define LOOP_DURATION		39  // us
+
+unsigned long _time_us = 0;
 
 /*******************************************************************************
  * Main Function
@@ -110,7 +112,7 @@ void mcu_main()
 
 	/* Debug: log number of frames from peripherals */
 	unsigned long cpu_cnt, xbee_cnt, lsm_cnt, adv_cnt, dbg_cnt;
-	cpu_cnt = xbee_cnt = lsm_cnt = adv_cnt = dbg_cnt = 0;
+	cpu_cnt = xbee_cnt = lsm_cnt = adv_cnt = 0;
 	unsigned long debug_timer = 0;
 	/* End of debug */
 
@@ -118,18 +120,21 @@ void mcu_main()
 	while (1)
 	{
 		/* Update execution time */
-		cur_time = time_ms();
+		cur_time = _time_us / 1000; //time_ms();
 
 		/* Debug: log number of frame from peripherals */
 		if (cur_time - debug_timer >= 10000) {
-			debug_print(DBG_INFO, "time: %d, cpu: %d, xbee: %d, lsm: %d, adv: %d, dbg: %d\n",
-					cur_time/1000, cpu_cnt, xbee_cnt, lsm_cnt, adv_cnt, dbg_cnt);
-			cpu_cnt = xbee_cnt = lsm_cnt = adv_cnt = dbg_cnt = 0;
+			debug_print(DBG_INFO, "time: %d, cpu: %d, xbee: %d, lsm: %d, adv: %d\n",
+					cur_time/1000, cpu_cnt, xbee_cnt, lsm_cnt, adv_cnt);
+			cpu_cnt = xbee_cnt = lsm_cnt = adv_cnt = 0;
 			debug_timer = cur_time;
 		}
 
 		/* Check for new sensors values */
-		lsm_cnt += MCU_Get_Inertial_Data(cur_time);
+		if (MCU_Get_Inertial_Data(cur_time)) {
+			lsm_cnt ++;
+			_time_us += INERTIAL_DURATION;
+		}
 
 		/* Check for new controller frame */
 		switch (MCU_Get_Controller_Data(cur_time)) {
@@ -138,6 +143,7 @@ void mcu_main()
 			break;
 		case 1:
 			xbee_cnt ++;
+			_time_us += CONTROLLER_DURATION;
 			break;
 		}
 
@@ -148,6 +154,7 @@ void mcu_main()
 			break;
 		case 1:
 			cpu_cnt ++;
+			_time_us += CPU_DURATION;
 			if (cpu_get_mode_flag()) {
 				cpu_mode = cpu_get_mode_data();
 			}
@@ -155,7 +162,10 @@ void mcu_main()
 		}
 
 		/* Send state to controller */
-		adv_cnt += MCU_Advert(cur_time);
+		if (MCU_Advert(cur_time)) {
+			adv_cnt ++;
+			_time_us += ADVERT_DURATION;
+		}
 
 		/* Change and init mode if needed */
 		if (mcu_mode != mcu_next_mode) {
@@ -174,19 +184,22 @@ void mcu_main()
 				break;
 			}
 			xbee_advertize(mcu_mode);
+			_time_us += ADVERT_DURATION;
 		}
 
 		/* Execute mode process */
 		switch (mcu_mode) {
 		case MCU_MODE_UNARMED:
-			mcu_next_mode = Mode_Unarmed_Run(cpu_mode);
+			mcu_next_mode = Mode_Unarmed_Run(cpu_mode, &_time_us);
 			break;
 		case MCU_MODE_ALEXKIDD:
-			mcu_next_mode = Mode_AlexKidd_Run(cpu_mode);
+			mcu_next_mode = Mode_AlexKidd_Run(cpu_mode, &_time_us);
 			break;
 		default :
 			break;
 		}
+
+		_time_us += LOOP_DURATION;
 
 		dbg_cnt++;
 	}
